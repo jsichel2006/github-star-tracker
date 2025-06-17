@@ -26,7 +26,7 @@ GITHUB_ARCHIVE_URL = "https://data.gharchive.org"
 REPO_INDEX_FILE = "repo_index.csv"
 STAR_HISTORY_DIR = "star_history"
 DAYS_HISTORY = 30
-TARGET_HOUR = 0  # Now passed as an integer (no zero padding)
+HOURS_PER_DAY = list(range(24))
 
 
 def is_first_run():
@@ -107,12 +107,10 @@ def update_csv(repo_name, date_str, count):
             reader = csv.reader(f)
             lines = list(reader)
 
-    # Remove oldest if already have 30 days
     if len(lines) >= DAYS_HISTORY:
         lines = lines[1:]
 
-    lines.append([date_str, TARGET_HOUR, count])
-
+    lines.append([date_str, count])
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerows(lines)
@@ -137,19 +135,26 @@ def main():
         now = datetime.now(pytz.utc)
         for i in range(DAYS_HISTORY):
             day = now - timedelta(days=(DAYS_HISTORY - i))
-            date = day.replace(hour=0, minute=0, second=0, microsecond=0)
-            archive_file = download_archive(date, TARGET_HOUR)
+            date_str = day.strftime('%Y-%m-%d')
+            total_counts = {repo: 0 for repo in active_repos}
+            any_data_found = False
 
-            if archive_file:
-                logging.info(f"Processing archive for {date.strftime('%Y-%m-%d')} at hour {TARGET_HOUR}")
-                daily_counts = process_archive(archive_file, active_repos)
-                for repo in active_repos:
-                    count = daily_counts.get(repo, 0)
-                    update_csv(repo, date.strftime('%Y-%m-%d'), count)
+            for hour in HOURS_PER_DAY:
+                archive_file = download_archive(day, hour)
+                if archive_file:
+                    any_data_found = True
+                    logging.info(f"Processing archive: {date_str} hour {hour}")
+                    hourly_counts = process_archive(archive_file, active_repos)
+                    for repo in hourly_counts:
+                        total_counts[repo] += hourly_counts[repo]
+
+            if any_data_found:
+                for repo, count in total_counts.items():
+                    update_csv(repo, date_str, count)
             else:
-                logging.warning(f"Archive missing for {date.strftime('%Y-%m-%d')} at hour {TARGET_HOUR} — inserting 'NA'")
+                logging.warning(f"No data available for {date_str}, inserting NA for all repos")
                 for repo in active_repos:
-                    update_csv(repo, date.strftime('%Y-%m-%d'), "NA")
+                    update_csv(repo, date_str, "NA")
 
         logging.info("Star history update complete.")
 
