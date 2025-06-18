@@ -5,21 +5,8 @@ import gzip
 from datetime import datetime, timedelta
 import pytz
 import requests
-from dotenv import load_dotenv
 import logging
-
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f'logs/{datetime.now(pytz.utc).strftime("%Y-%m-%d")}.log'),
-        logging.StreamHandler()
-    ]
-)
+from concurrent.futures import ProcessPoolExecutor
 
 # Constants
 GITHUB_ARCHIVE_URL = "https://data.gharchive.org"
@@ -28,6 +15,16 @@ STAR_HISTORY_DIR = "star_history"
 DAYS_HISTORY = 30
 HOURS_PER_DAY = list(range(24))
 
+# Configure logging
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f'logs/{datetime.now(pytz.utc).strftime("%Y-%m-%d")}.log'),
+        logging.StreamHandler()
+    ]
+)
 
 def is_first_run():
     if not os.path.exists(STAR_HISTORY_DIR):
@@ -42,12 +39,10 @@ def is_first_run():
                     return True
     return False
 
-
 def clear_star_history():
     for filename in os.listdir(STAR_HISTORY_DIR):
         if filename.endswith('.csv'):
             os.remove(os.path.join(STAR_HISTORY_DIR, filename))
-
 
 def get_active_repos():
     active_repos = set()
@@ -57,12 +52,10 @@ def get_active_repos():
             next(reader)
             for row in reader:
                 if row:
-                    repo_name = row[0]
-                    active_repos.add(repo_name)
+                    active_repos.add(row[0])
     except FileNotFoundError:
         logging.warning("No repository index found.")
     return active_repos
-
 
 def download_archive(date, hour):
     url = f"{GITHUB_ARCHIVE_URL}/{date.strftime('%Y-%m-%d')}-{hour}.json.gz"
@@ -76,7 +69,6 @@ def download_archive(date, hour):
         return local_path
     except requests.exceptions.RequestException:
         return None
-
 
 def process_archive(file_path, active_repos):
     counts = {}
@@ -95,7 +87,6 @@ def process_archive(file_path, active_repos):
         os.remove(file_path)
     return counts
 
-
 def update_csv(repo_name, date_str, count):
     os.makedirs(STAR_HISTORY_DIR, exist_ok=True)
     clean_name = repo_name.replace('/', '_')
@@ -111,57 +102,64 @@ def update_csv(repo_name, date_str, count):
         lines = lines[1:]
 
     lines.append([date_str, count])
+    lines.sort(key=lambda x: x[0])
+
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerows(lines)
 
+def process_day_wrapper(args):
+    day_str, active_repos = args
+    process_day(day_str, active_repos)
+
+def process_day(date_str, active_repos):
+    logging.info(f"Processing day: {date_str}")
+    date = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=pytz.utc)
+    total_counts = {repo: 0 for repo in active_repos}
+    any_data_found = False
+
+    for hour in HOURS_PER_DAY:
+        archive_file = download_archive(date, hour)
+        if archive_file:
+            any_data_found = True
+            logging.info(f"Processing archive: {date_str} hour {hour}")
+            hourly_counts = process_archive(archive_file, active_repos)
+            for repo in hourly_counts:
+                total_counts[repo] += hourly_counts[repo]
+
+    if any_data_found:
+        for repo, count in total_counts.items():
+            update_csv(repo, date_str, count)
+    else:
+        logging.warning(f"No data available for {date_str}, inserting NA for all repos")
+        for repo in active_repos:
+            update_csv(repo, date_str, "NA")
 
 def main():
-    try:
-        logging.info("Starting star history update")
+    logging.info("Starting parallelized star history update (by day)")
 
-        if not os.path.exists(STAR_HISTORY_DIR):
-            os.makedirs(STAR_HISTORY_DIR)
+    if not os.path.exists(STAR_HISTORY_DIR):
+        os.makedirs(STAR_HISTORY_DIR)
 
-        if is_first_run():
-            logging.info("First run detected — clearing old star history")
-            clear_star_history()
+    if is_first_run():
+        logging.info("First run detected — clearing old star history")
+        clear_star_history()
 
-        active_repos = get_active_repos()
-        if not active_repos:
-            logging.warning("No active repositories found. Exiting.")
-            return
+    active_repos = get_active_repos()
+    if not active_repos:
+        logging.warning("No active repositories found. Exiting.")
+        return
 
-        now = datetime.now(pytz.utc)
-        for i in range(DAYS_HISTORY):
-            day = now - timedelta(days=(DAYS_HISTORY - i))
-            date_str = day.strftime('%Y-%m-%d')
-            total_counts = {repo: 0 for repo in active_repos}
-            any_data_found = False
+    now = datetime.now(pytz.utc)
+    day_strings = [
+        (now - timedelta(days=(DAYS_HISTORY - i))).strftime('%Y-%m-%d')
+        for i in range(DAYS_HISTORY)
+    ]
 
-            for hour in HOURS_PER_DAY:
-                archive_file = download_archive(day, hour)
-                if archive_file:
-                    any_data_found = True
-                    logging.info(f"Processing archive: {date_str} hour {hour}")
-                    hourly_counts = process_archive(archive_file, active_repos)
-                    for repo in hourly_counts:
-                        total_counts[repo] += hourly_counts[repo]
+    with ProcessPoolExecutor() as executor:
+        executor.map(process_day_wrapper, [(day, active_repos) for day in day_strings])
 
-            if any_data_found:
-                for repo, count in total_counts.items():
-                    update_csv(repo, date_str, count)
-            else:
-                logging.warning(f"No data available for {date_str}, inserting NA for all repos")
-                for repo in active_repos:
-                    update_csv(repo, date_str, "NA")
-
-        logging.info("Star history update complete.")
-
-    except Exception as e:
-        logging.error(f"Fatal error: {str(e)}")
-        raise
-
+    logging.info("Star history update complete.")
 
 if __name__ == "__main__":
     main()
