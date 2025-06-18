@@ -135,6 +135,15 @@ def process_day(date_str, active_repos):
         for repo in active_repos:
             update_csv(repo, date_str, "NA")
 
+def cleanup_temp_files():
+    for filename in os.listdir('.'):
+        if filename.startswith('temp_') and filename.endswith('.json.gz'):
+            try:
+                os.remove(filename)
+                logging.info(f"Deleted leftover temp file: {filename}")
+            except Exception as e:
+                logging.warning(f"Failed to delete temp file {filename}: {e}")
+
 def main():
     logging.info("Starting parallelized star history update (by day)")
 
@@ -159,6 +168,7 @@ def main():
     with ProcessPoolExecutor() as executor:
         executor.map(process_day_wrapper, [(day, active_repos) for day in day_strings])
 
+    cleanup_temp_files()
     logging.info("Star history update complete.")
 
 if __name__ == "__main__":
