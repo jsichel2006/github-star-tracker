@@ -48,7 +48,7 @@ def search_repositories(date_range):
         if len(items) < 100:
             break
     if len(repos) >= 1000:
-        logging.warning(f"⚠️ Hit max page limit (1000 repos) for range: {date_range[0]} to {date_range[1]}")
+        logging.warning(f"Hit max page limit (1000 repos) for range: {date_range[0]} to {date_range[1]}")
     return repos
 
 def save_repo_index(repos):
