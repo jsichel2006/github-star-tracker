@@ -61,26 +61,35 @@ def get_active_repos():
 def download_archive(date, hour):
     url = f"{GITHUB_ARCHIVE_URL}/{date.strftime('%Y-%m-%d')}-{hour}.json.gz"
     local_path = f"temp_{date.strftime('%Y-%m-%d')}-{hour}.json.gz"
-    start_time = time.time()
-    try:
-        response = requests.get(url, stream=True, timeout=15)
-        response.raise_for_status()
+    max_retries = 2
+    backoff = 1
 
-        download_time = time.time() - start_time
-        if download_time > 10:
-            logging.warning(f"Slow download detected ({download_time:.2f}s): {url}")
-        else:
-            logging.info(f"Downloaded in {download_time:.2f}s: {url}")
+    for attempt in range(max_retries + 1):
+        start_time = time.time()
+        try:
+            response = requests.get(url, stream=True, timeout=15)
+            response.raise_for_status()
 
-        with open(local_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+            download_time = time.time() - start_time
+            if download_time > 10:
+                logging.warning(f"Slow download detected ({download_time:.2f}s): {url}")
+            else:
+                logging.info(f"Downloaded in {download_time:.2f}s: {url}")
 
-        return local_path
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
 
-    except requests.exceptions.RequestException as e:
-        logging.warning(f"Failed to download {url}: {e}")
-        return None
+            return local_path  # Success
+
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"Attempt {attempt + 1} failed to download {url}: {e}")
+            if attempt < max_retries:
+                time.sleep(backoff)
+                backoff *= 2  # Exponential backoff
+            else:
+                logging.warning(f"Giving up on {url} after {max_retries + 1} attempts.")
+                return None
 
 def process_archive(file_path, active_repos):
     counts = {}
