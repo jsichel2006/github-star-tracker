@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import gzip
+import time
 from datetime import datetime, timedelta
 import pytz
 import requests
@@ -60,14 +61,25 @@ def get_active_repos():
 def download_archive(date, hour):
     url = f"{GITHUB_ARCHIVE_URL}/{date.strftime('%Y-%m-%d')}-{hour}.json.gz"
     local_path = f"temp_{date.strftime('%Y-%m-%d')}-{hour}.json.gz"
+    start_time = time.time()
     try:
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, timeout=15)
         response.raise_for_status()
+
+        download_time = time.time() - start_time
+        if download_time > 10:
+            logging.warning(f"Slow download detected ({download_time:.2f}s): {url}")
+        else:
+            logging.info(f"Downloaded in {download_time:.2f}s: {url}")
+
         with open(local_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+
         return local_path
-    except requests.exceptions.RequestException:
+
+    except requests.exceptions.RequestException as e:
+        logging.warning(f"Failed to download {url}: {e}")
         return None
 
 def process_archive(file_path, active_repos):
@@ -102,11 +114,11 @@ def update_csv(repo_name, date_str, count):
         lines = lines[1:]
 
     lines.append([date_str, count])
-    lines.sort(key=lambda x: x[0])
 
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerows(lines)
+
 
 def process_day_wrapper(args):
     day_str, active_repos = args
