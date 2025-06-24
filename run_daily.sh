@@ -24,33 +24,28 @@ echo "Checking for required files in backend/utils directory..."
 
 # Run scripts with correct paths
 echo "Running repository discovery..."
-python "$SCRIPT_DIR/backend/fetch_repos.py"
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to fetch repositories"
-    exit 1
-fi
+python "$SCRIPT_DIR/backend/fetch_repos.py" || exit 1
 
 echo "Updating star histories..."
-python "$SCRIPT_DIR/backend/update_star_history.py"
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to update star history"
-    exit 1
-fi
+python "$SCRIPT_DIR/backend/update_star_history.py" || exit 1
 
 echo "Cleaning up old repositories..."
-python "$SCRIPT_DIR/backend/cleanup_old_repos.py"
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to clean up old repositories"
-    exit 1
-fi
+python "$SCRIPT_DIR/backend/cleanup_old_repos.py" || exit 1
 
 echo "Converting and sorting star history..."
-python "$SCRIPT_DIR/backend/convert_and_sort_star_history.py"
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to convert and sort star history"
-    exit 1
-fi
+python "$SCRIPT_DIR/backend/convert_and_sort_star_history.py" || exit 1
 
 echo "----------------------------------------"
 echo "Daily tracking completed successfully"
 echo "----------------------------------------"
+
+# Start frontend
+echo "Starting frontend..."
+cd "$SCRIPT_DIR/frontend"
+npm run dev &
+
+# Optional: Open the frontend in browser (Mac-specific)
+if command -v open &> /dev/null; then
+    echo "Opening frontend in browser..."
+    open http://localhost:8080
+fi
