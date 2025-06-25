@@ -1,8 +1,8 @@
 import os
 import csv
-import json
 import gzip
 import time
+import orjson
 from datetime import datetime, timedelta
 import pytz
 import requests
@@ -98,7 +98,7 @@ def process_archive(file_path, active_repos):
         with gzip.open(file_path, 'rt', encoding='utf-8') as f:
             for line in f:
                 try:
-                    event = json.loads(line)
+                    event = orjson.loads(line)
                     if event["type"] == "WatchEvent":
                         repo_name = event["repo"]["name"]
                         if repo_name in active_repos:
