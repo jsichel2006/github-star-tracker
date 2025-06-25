@@ -15,7 +15,7 @@ REPO_INDEX_FILE = "repo_index.csv"
 STAR_HISTORY_DIR = "star_history"
 DAYS_HISTORY = 30
 HOURS_PER_DAY = list(range(24))
-MAX_WORKERS = 12
+MAX_WORKERS = 16
 
 # Configure logging
 os.makedirs("logs", exist_ok=True)
