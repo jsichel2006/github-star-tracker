@@ -1,5 +1,4 @@
 # Shared (Frontend + Backend)
-
 node_modules/
 dist/
 build/
@@ -49,7 +48,6 @@ ehthumbs.db
 Thumbs.db
 
 # Backend-specific
-
 venv/
 
 # Frontend-specific
@@ -86,3 +84,9 @@ jspm_packages/
 public/
 .out/
 .storybook-out/
+
+# Custom additions (generated/output data)
+frontend/public/converted_star_history/
+frontend/public/converted_sorted_star_history.csv
+star_history/
+repo_index.csv
