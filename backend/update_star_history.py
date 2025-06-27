@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pytz
 import requests
 import logging
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 # Constants
 GITHUB_ARCHIVE_URL = "https://data.gharchive.org"
@@ -15,7 +15,7 @@ REPO_INDEX_FILE = "repo_index.csv"
 STAR_HISTORY_DIR = "star_history"
 DAYS_HISTORY = 30
 HOURS_PER_DAY = list(range(24))
-MAX_WORKERS = 16
+MAX_WORKERS = 8
 
 # Configure logging
 os.makedirs("logs", exist_ok=True)
@@ -95,14 +95,15 @@ def download_archive(date, hour):
 def process_archive(file_path, active_repos):
     counts = {}
     try:
-        with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+        with gzip.open(file_path, 'rb') as f:
             for line in f:
+                if b'"type":"WatchEvent"' not in line:
+                    continue
                 try:
                     event = orjson.loads(line)
-                    if event["type"] == "WatchEvent":
-                        repo_name = event["repo"]["name"]
-                        if repo_name in active_repos:
-                            counts[repo_name] = counts.get(repo_name, 0) + 1
+                    repo_name = event.get("repo", {}).get("name")
+                    if repo_name in active_repos:
+                        counts[repo_name] = counts.get(repo_name, 0) + 1
                 except Exception:
                     continue
     finally:
@@ -123,17 +124,24 @@ def write_batch_updates(date_str, daily_counts):
                 reader = csv.reader(f)
                 for row in reader:
                     if row and row[0] == date_str:
-                        row[1] = str(count)
                         seen = True
+                        break
                     lines.append(row)
-        if not seen:
-            lines.append(new_line)
+            if seen:
+                continue  # Skip updating if date already exists
 
-        lines = sorted(lines, key=lambda x: x[0])[-DAYS_HISTORY:]
+        lines.append(new_line)
 
-        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+        with open(file_path, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerows(lines)
+            writer.writerow(new_line)
+
+def process_hour(date, hour, active_repos):
+    archive_file = download_archive(date, hour)
+    if archive_file:
+        logging.info(f"Processing archive: {date.strftime('%Y-%m-%d')} hour {hour}")
+        return process_archive(archive_file, active_repos)
+    return {}
 
 def process_day_wrapper(args):
     day_str, active_repos = args
@@ -145,14 +153,14 @@ def process_day(date_str, active_repos):
     total_counts = {repo: 0 for repo in active_repos}
     any_data_found = False
 
-    for hour in HOURS_PER_DAY:
-        archive_file = download_archive(date, hour)
-        if archive_file:
-            any_data_found = True
-            logging.info(f"Processing archive: {date_str} hour {hour}")
-            hourly_counts = process_archive(archive_file, active_repos)
-            for repo in hourly_counts:
-                total_counts[repo] += hourly_counts[repo]
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(process_hour, date, hour, active_repos): hour for hour in HOURS_PER_DAY}
+        for future in as_completed(futures):
+            hourly_counts = future.result()
+            if hourly_counts:
+                any_data_found = True
+                for repo, count in hourly_counts.items():
+                    total_counts[repo] += count
 
     if any_data_found:
         write_batch_updates(date_str, total_counts)
@@ -171,7 +179,7 @@ def cleanup_temp_files():
                 logging.warning(f"Failed to delete temp file {filename}: {e}")
 
 def main():
-    logging.info("Starting parallelized star history update (by day)")
+    logging.info("Starting optimized star history update")
 
     if not os.path.exists(STAR_HISTORY_DIR):
         os.makedirs(STAR_HISTORY_DIR)
