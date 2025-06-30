@@ -13,7 +13,7 @@ const HomePage: React.FC = () => {
     const fetchRepositories = async () => {
       try {
         console.log('Fetching repository list...');
-        const response = await fetch('/converted_sorted_star_history.csv');
+        const response = await fetch('/converted_sorted_growth_30d.csv');
         if (!response.ok) {
           throw new Error(`Failed to fetch repository list: ${response.status}`);
         }

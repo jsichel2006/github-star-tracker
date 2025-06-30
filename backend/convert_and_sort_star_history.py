@@ -1,15 +1,13 @@
 import os
 import csv
 import logging
-import statistics
-from datetime import datetime
 from urllib.parse import urlparse
 
 STAR_HISTORY_DIR = "star_history"
 REPO_INDEX_FILE = "repo_index.csv"
-OUTPUT_FILE = "frontend/public/converted_sorted_star_history.csv"
 CONVERTED_DIR = "frontend/public/converted_star_history"
-DAYS_HISTORY = 30
+OUTPUT_5D = "frontend/public/converted_sorted_growth_5d.csv"
+OUTPUT_30D = "frontend/public/converted_sorted_growth_30d.csv"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -50,28 +48,6 @@ def convert_to_cumulative(daily_deltas, current_count):
     cumulative.reverse()
     return cumulative
 
-def compute_metrics(star_data):
-    values = [count for (_, count) in star_data if count is not None]
-    if len(values) < 2:
-        return 0.0, 0.0, 0.0
-
-    growths = [j - i for i, j in zip(values[:-1], values[1:])]
-    avg_growth = sum(growths) / len(growths)
-
-    try:
-        std_dev = statistics.stdev(growths)
-        smoothness = 1 / std_dev if std_dev > 0 else 1.0
-    except statistics.StatisticsError:
-        smoothness = 1.0
-
-    sign_matches = sum(
-        (g1 > 0 and g2 > 0) or (g1 < 0 and g2 < 0)
-        for g1, g2 in zip(growths[:-1], growths[1:])
-    )
-    consistency = sign_matches / max(len(growths) - 1, 1)
-
-    return avg_growth, smoothness, consistency
-
 def clear_converted_dir():
     if os.path.exists(CONVERTED_DIR):
         for file in os.listdir(CONVERTED_DIR):
@@ -82,7 +58,7 @@ def clear_converted_dir():
         os.makedirs(CONVERTED_DIR)
 
 def main():
-    logging.info("Starting conversion and sorting of star history")
+    logging.info("Starting conversion and growth-based sorting")
 
     star_counts = load_current_star_counts()
     repos_data = []
@@ -104,40 +80,65 @@ def main():
             logging.warning(f"Failed to read history for {repo_name}: {e}")
             continue
 
-        if len(history) < DAYS_HISTORY:
-            logging.warning(f"Insufficient data for {repo_name}, skipping")
-            continue
-
-        cumulative_history = convert_to_cumulative(history, star_counts[repo_name])
-        avg_growth, smoothness, consistency = compute_metrics(cumulative_history)
-        score = avg_growth * smoothness * consistency
-
-        # Write individual converted CSV
+        cumulative = convert_to_cumulative(history, star_counts[repo_name])
         converted_path = os.path.join(CONVERTED_DIR, f"{repo_name}.csv")
         os.makedirs(os.path.dirname(converted_path), exist_ok=True)
+
         with open(converted_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["date", "stars"])
-            for date, stars in cumulative_history:
+            for date, stars in cumulative:
                 writer.writerow([date, stars if stars is not None else "NA"])
+
+        values = [v for (_, v) in cumulative if v is not None]
+
+        growth_5d_pct = None
+        growth_30d_pct = None
+
+        if len(values) >= 5:
+            start_5d = values[-5]
+            end_5d = values[-1]
+            if start_5d > 0:
+                growth_5d_pct = ((end_5d - start_5d) / start_5d) * 100
+
+        if len(values) >= 30:
+            start_30d = values[-30]
+            end_30d = values[-1]
+            if start_30d > 0:
+                growth_30d_pct = ((end_30d - start_30d) / start_30d) * 100
 
         repos_data.append({
             "name": repo_name,
-            "score": score,
-            "current_stars": star_counts[repo_name]
+            "current_stars": star_counts[repo_name],
+            "growth_5d_pct": growth_5d_pct,
+            "growth_30d_pct": growth_30d_pct
         })
 
-    # Sort final ranking
-    repos_data.sort(key=lambda x: (-x["score"], x["name"]))
-
-    # Write sorted ranking CSV
-    with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as f:
+    # Write 5-day sorted CSV
+    sorted_5d = sorted(repos_data, key=lambda x: (x["growth_5d_pct"] is None, -x["growth_5d_pct"] if x["growth_5d_pct"] is not None else 0, x["name"]))
+    with open(OUTPUT_5D, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(["repo_name", "score", "current_stars"])
-        for repo in repos_data:
-            writer.writerow([repo["name"], f"{repo['score']:.4f}", repo["current_stars"]])
+        writer.writerow(["repo_name", "growth_5d_pct", "current_stars"])
+        for repo in sorted_5d:
+            writer.writerow([
+                repo["name"],
+                f"{repo['growth_5d_pct']:.2f}" if repo["growth_5d_pct"] is not None else "",
+                repo["current_stars"]
+            ])
 
-    logging.info(f"Written converted CSVs to {CONVERTED_DIR}/ and sorted ranking to {OUTPUT_FILE}")
+    # Write 30-day sorted CSV
+    sorted_30d = sorted(repos_data, key=lambda x: (x["growth_30d_pct"] is None, -x["growth_30d_pct"] if x["growth_30d_pct"] is not None else 0, x["name"]))
+    with open(OUTPUT_30D, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(["repo_name", "growth_30d_pct", "current_stars"])
+        for repo in sorted_30d:
+            writer.writerow([
+                repo["name"],
+                f"{repo['growth_30d_pct']:.2f}" if repo["growth_30d_pct"] is not None else "",
+                repo["current_stars"]
+            ])
+
+    logging.info("Generated sorted CSVs: 5-day and 30-day percentage growth rankings")
 
 if __name__ == "__main__":
     main()
