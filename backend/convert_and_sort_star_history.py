@@ -6,8 +6,12 @@ from urllib.parse import urlparse
 STAR_HISTORY_DIR = "star_history"
 REPO_INDEX_FILE = "repo_index.csv"
 CONVERTED_DIR = "frontend/public/converted_star_history"
-OUTPUT_5D = "frontend/public/converted_sorted_growth_5d.csv"
-OUTPUT_30D = "frontend/public/converted_sorted_growth_30d.csv"
+OUTPUT_PCT_1D = "frontend/public/sorted_pct_1d.csv"
+OUTPUT_PCT_5D = "frontend/public/sorted_pct_5d.csv"
+OUTPUT_PCT_30D = "frontend/public/sorted_pct_30d.csv"
+OUTPUT_RAW_1D = "frontend/public/sorted_raw_1d.csv"
+OUTPUT_RAW_5D = "frontend/public/sorted_raw_5d.csv"
+OUTPUT_RAW_30D = "frontend/public/sorted_raw_30d.csv"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -92,53 +96,75 @@ def main():
 
         values = [v for (_, v) in cumulative if v is not None]
 
-        growth_5d_pct = None
-        growth_30d_pct = None
+        pct_30d = raw_30d = pct_1d = raw_1d = pct_5d = raw_5d = None
+        max_5d_index = None
 
-        if len(values) >= 5:
-            start_5d = values[-5]
-            end_5d = values[-1]
-            if start_5d > 0:
-                growth_5d_pct = ((end_5d - start_5d) / start_5d) * 100
+        if len(values) >= 2:
+            for i in range(len(values)-1):
+                if values[i] is not None and values[i+1] is not None:
+                    diff = values[i+1] - values[i]
+                    pct = ((diff) / values[i]) * 100 if values[i] > 0 else None
+                    if pct_1d is None or pct > pct_1d:
+                        pct_1d = pct
+                    if raw_1d is None or diff > raw_1d:
+                        raw_1d = diff
+
+        if len(values) >= 6:
+            for i in range(len(values) - 5):
+                segment = values[i:i+6]
+                if None in segment:
+                    continue
+                start, end = segment[0], segment[5]
+                diff = end - start
+                if start == 0:
+                    continue
+                pct = (diff / start) * 100
+                if pct_5d is None or pct > pct_5d:
+                    pct_5d = pct
+                    max_5d_index = i
+                if raw_5d is None or diff > raw_5d:
+                    raw_5d = diff
 
         if len(values) >= 30:
             start_30d = values[-30]
             end_30d = values[-1]
+            diff = end_30d - start_30d
             if start_30d > 0:
-                growth_30d_pct = ((end_30d - start_30d) / start_30d) * 100
+                pct_30d = (diff / start_30d) * 100
+            raw_30d = diff
 
         repos_data.append({
             "name": repo_name,
             "current_stars": star_counts[repo_name],
-            "growth_5d_pct": growth_5d_pct,
-            "growth_30d_pct": growth_30d_pct
+            "pct_1d": pct_1d,
+            "raw_1d": raw_1d,
+            "pct_5d": pct_5d,
+            "raw_5d": raw_5d,
+            "pct_30d": pct_30d,
+            "raw_30d": raw_30d,
+            "max_5d_index": max_5d_index
         })
 
-    # Write 5-day sorted CSV
-    sorted_5d = sorted(repos_data, key=lambda x: (x["growth_5d_pct"] is None, -x["growth_5d_pct"] if x["growth_5d_pct"] is not None else 0, x["name"]))
-    with open(OUTPUT_5D, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["repo_name", "growth_5d_pct", "current_stars"])
-        for repo in sorted_5d:
-            writer.writerow([
-                repo["name"],
-                f"{repo['growth_5d_pct']:.2f}" if repo["growth_5d_pct"] is not None else "",
-                repo["current_stars"]
-            ])
+    def write_sorted_output(output_file, key, label):
+        sorted_data = sorted(repos_data, key=lambda x: (x[key] is None, -x[key] if x[key] is not None else 0, x["name"]))
+        with open(output_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["repo_name", label, "current_stars"])
+            for repo in sorted_data:
+                writer.writerow([
+                    repo["name"],
+                    f"{repo[key]:.2f}" if repo[key] is not None else "",
+                    repo["current_stars"]
+                ])
 
-    # Write 30-day sorted CSV
-    sorted_30d = sorted(repos_data, key=lambda x: (x["growth_30d_pct"] is None, -x["growth_30d_pct"] if x["growth_30d_pct"] is not None else 0, x["name"]))
-    with open(OUTPUT_30D, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["repo_name", "growth_30d_pct", "current_stars"])
-        for repo in sorted_30d:
-            writer.writerow([
-                repo["name"],
-                f"{repo['growth_30d_pct']:.2f}" if repo["growth_30d_pct"] is not None else "",
-                repo["current_stars"]
-            ])
+    write_sorted_output(OUTPUT_PCT_1D, "pct_1d", "pct_1d_growth")
+    write_sorted_output(OUTPUT_RAW_1D, "raw_1d", "raw_1d_growth")
+    write_sorted_output(OUTPUT_PCT_5D, "pct_5d", "pct_5d_growth")
+    write_sorted_output(OUTPUT_RAW_5D, "raw_5d", "raw_5d_growth")
+    write_sorted_output(OUTPUT_PCT_30D, "pct_30d", "pct_30d_growth")
+    write_sorted_output(OUTPUT_RAW_30D, "raw_30d", "raw_30d_growth")
 
-    logging.info("Generated sorted CSVs: 5-day and 30-day percentage growth rankings")
+    logging.info("Generated sorted CSVs for 1d, 5d, and 30d in both % and raw growth")
 
 if __name__ == "__main__":
     main()

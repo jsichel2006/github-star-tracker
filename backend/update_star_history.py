@@ -37,7 +37,7 @@ def is_first_run():
             with open(filepath, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 lines = list(reader)
-                if len(lines) < DAYS_HISTORY:
+                if len(lines) != DAYS_HISTORY:
                     return True
     return False
 
@@ -119,22 +119,25 @@ def write_batch_updates(date_str, daily_counts):
 
         lines = []
         seen = False
+
         if os.path.exists(file_path):
             with open(file_path, 'r', newline='', encoding='utf-8') as f:
                 reader = csv.reader(f)
                 for row in reader:
-                    if row and row[0] == date_str:
-                        seen = True
-                        break
-                    lines.append(row)
-            if seen:
-                continue  # Skip updating if date already exists
+                    if row:
+                        lines.append(row)
+                        if row[0] == date_str:
+                            seen = True
 
-        lines.append(new_line)
+        if not seen:
+            lines.append(new_line)
 
-        with open(file_path, 'a', newline='', encoding='utf-8') as f:
+        # Always trim to most recent 30 days
+        lines = sorted(lines, key=lambda x: x[0])[-DAYS_HISTORY:]
+
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(new_line)
+            writer.writerows(lines)
 
 def process_hour(date, hour, active_repos):
     archive_file = download_archive(date, hour)
