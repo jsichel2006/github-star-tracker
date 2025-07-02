@@ -193,6 +193,34 @@ def main():
             row["upcoming"] = str(repo["upcoming"]).lower()
             writer.writerow(row)
 
+    for day in range(1, 30):
+        pct_key = f"post_pct_day_{day}"
+        raw_key = f"post_raw_day_{day}"
+        for repo in repos_data:
+            values = [v for (_, v) in convert_to_cumulative(load_repo_history(f"{repo['name'].replace('/', '_')}.csv"),
+                                                             int(repo_metadata[repo['name']]["stargazers_count"])) if v is not None]
+            if len(values) <= day or values[day] is None or values[-1] is None:
+                repo[pct_key] = None
+                repo[raw_key] = None
+                continue
+
+            start = values[day]
+            end = values[-1]
+            diff = end - start
+            repo[raw_key] = diff
+            repo[pct_key] = (diff / start) * 100 if start > 0 else None
+
+        write_sorted_output(
+            f"frontend/public/sorted_pct_post_day_{day}.csv",
+            pct_key,
+            f"pct_post_day_{day}_growth"
+        )
+        write_sorted_output(
+            f"frontend/public/sorted_raw_post_day_{day}.csv",
+            raw_key,
+            f"raw_post_day_{day}_growth"
+        )
+
     logging.info("Generated all CSVs including updated repo_filters.csv with upcoming column")
 
 if __name__ == "__main__":
