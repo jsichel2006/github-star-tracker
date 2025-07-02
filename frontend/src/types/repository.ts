@@ -1,6 +1,6 @@
 
 export interface Repository {
-  full_name: string;
+  repo_name: string;
   html_url: string;
   created_at: string;
   stargazers_count: number;

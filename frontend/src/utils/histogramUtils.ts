@@ -45,6 +45,6 @@ const formatValue = (value: number): string => {
   } else if (value < 100) {
     return Math.round(value).toString();
   } else {
-    return Math.round(value / 100) * 100;
+    return (Math.round(value / 100) * 100).toString();
   }
 };

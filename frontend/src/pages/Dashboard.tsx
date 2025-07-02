@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Repository, FilterState, HistogramBin } from '@/types/repository';
 import { loadRepositoryData } from '@/utils/dataLoader';
@@ -39,8 +38,8 @@ const Dashboard = () => {
     setLoading(false);
   };
 
-  const handleRepoClick = (fullName: string) => {
-    setVisitedRepos(prev => new Set([...prev, fullName]));
+  const handleRepoClick = (repoName: string) => {
+    setVisitedRepos(prev => new Set([...prev, repoName]));
   };
 
   if (loading) {

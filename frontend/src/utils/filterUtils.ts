@@ -1,4 +1,3 @@
-
 import { Repository, FilterState } from '@/types/repository';
 
 export const applyFilters = (repositories: Repository[], filters: FilterState): Repository[] => {

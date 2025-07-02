@@ -67,12 +67,12 @@ def save_repo_index(repos):
     with open(REPO_INDEX_FILE, "w", newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow([
-            "full_name", "html_url", "created_at", "stargazers_count",
+            "repo_name", "html_url", "created_at", "stargazers_count",
             "pushed_at", "forks_count", "topics", "license_spdx", "owner_type"
         ])
         for repo in repos:
             writer.writerow([
-                repo.get("full_name"),
+                repo.get("repo_name"),
                 repo.get("html_url"),
                 repo.get("created_at"),
                 repo.get("stargazers_count"),
@@ -97,8 +97,8 @@ def main():
         logging.info(f"Searching date range: {r[0]} to {r[1]}")
         repos = search_repositories(r)
         for repo in repos:
-            if repo["full_name"] not in seen:
-                seen.add(repo["full_name"])
+            if repo["repo_name"] not in seen:
+                seen.add(repo["repo_name"])
                 all_repos.append(repo)
     save_repo_index(all_repos)
     copy_for_frontend()

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Repository, StarHistoryPoint } from '@/types/repository';
@@ -8,31 +7,55 @@ import { X } from 'lucide-react';
 import StarHistoryChart from '@/components/StarHistoryChart';
 
 const RepositoryDetail = () => {
-  const { owner, name } = useParams<{ owner: string; name: string }>();
+  const params = useParams<{ owner: string; name: string }>();
   const navigate = useNavigate();
   const [repository, setRepository] = useState<Repository | null>(null);
   const [starHistory, setStarHistory] = useState<StarHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Extract and decode URL parameters
+  const owner = params.owner ? decodeURIComponent(params.owner) : undefined;
+  const name = params.name ? decodeURIComponent(params.name) : undefined;
+
   useEffect(() => {
-    if (owner && name) {
+    console.log('URL params - owner:', owner, 'name:', name);
+    console.log('Raw params:', params);
+    
+    if (owner && name && owner !== 'undefined' && name !== 'undefined') {
       loadRepositoryDetails();
+    } else {
+      console.error('Missing or invalid owner/name parameters:', { owner, name, params });
+      setLoading(false);
     }
   }, [owner, name]);
 
   const loadRepositoryDetails = async () => {
-    if (!owner || !name) return;
+    if (!owner || !name || owner === 'undefined' || name === 'undefined') {
+      console.error('Owner or name is undefined or invalid:', { owner, name });
+      return;
+    }
     
     setLoading(true);
     try {
+      console.log('Loading repository details for:', `${owner}/${name}`);
+      
       // Load repository metadata
       const allRepos = await loadFilterData();
-      const repo = allRepos.find(r => r.full_name === `${owner}/${name}`);
+      const repo = allRepos.find(r => r.repo_name === `${owner}/${name}`);
+      console.log('Found repository:', repo);
+      console.log('All repos count:', allRepos.length);
       setRepository(repo || null);
 
-      // Load star history
-      const history = await loadStarHistory(owner, name);
-      setStarHistory(history);
+      // Load star history - use the repo_name to split owner/name
+      if (repo && repo.repo_name && repo.repo_name.includes('/')) {
+        const [repoOwner, repoName] = repo.repo_name.split('/');
+        console.log('Loading star history for owner:', repoOwner, 'name:', repoName);
+        const history = await loadStarHistory(repoOwner, repoName);
+        console.log('Loaded star history:', history.length, 'points');
+        setStarHistory(history);
+      } else {
+        console.warn('Could not parse owner/name from repo_name:', repo?.repo_name);
+      }
     } catch (error) {
       console.error('Error loading repository details:', error);
     }
@@ -49,6 +72,20 @@ const RepositoryDetail = () => {
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">Loading Repository Details...</div>
           <div className="text-muted-foreground">Please wait while we load the data</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!owner || !name || owner === 'undefined' || name === 'undefined') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl font-semibold mb-2">Invalid Repository URL</div>
+          <div className="text-muted-foreground mb-4">
+            Missing owner or repository name in the URL. Owner: {owner}, Name: {name}
+          </div>
+          <Button onClick={handleClose}>Back to Dashboard</Button>
         </div>
       </div>
     );
@@ -100,7 +137,7 @@ const RepositoryDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1">
               <h2 className="text-xl font-semibold text-blue-600 mb-2">
-                {repository.full_name}
+                {repository.repo_name}
               </h2>
               <a 
                 href={repository.html_url}
