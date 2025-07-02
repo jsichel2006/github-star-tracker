@@ -9,11 +9,13 @@ CONVERTED_DIR = "frontend/public/converted_star_history"
 OUTPUT_PCT_1D = "frontend/public/sorted_pct_1d.csv"
 OUTPUT_PCT_5D = "frontend/public/sorted_pct_5d.csv"
 OUTPUT_PCT_30D = "frontend/public/sorted_pct_30d.csv"
+OUTPUT_PCT_POST_5D = "frontend/public/sorted_pct_post_5d.csv"
+OUTPUT_RAW_POST_5D = "frontend/public/sorted_raw_post_5d.csv"
 OUTPUT_RAW_1D = "frontend/public/sorted_raw_1d.csv"
 OUTPUT_RAW_5D = "frontend/public/sorted_raw_5d.csv"
 OUTPUT_RAW_30D = "frontend/public/sorted_raw_30d.csv"
+REPO_FILTERS_OUTPUT = "frontend/public/repo_filters.csv"
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def extract_repo_full_name(url):
@@ -25,15 +27,15 @@ def extract_repo_full_name(url):
         pass
     return None
 
-def load_current_star_counts():
-    star_counts = {}
+def load_repo_index():
+    metadata = {}
     with open(REPO_INDEX_FILE, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             full_name = extract_repo_full_name(row["full_name"])
             if full_name:
-                star_counts[full_name] = int(row["stargazers_count"])
-    return star_counts
+                metadata[full_name] = row
+    return metadata, reader.fieldnames
 
 def load_repo_history(repo_filename):
     with open(os.path.join(STAR_HISTORY_DIR, repo_filename), 'r', encoding='utf-8') as f:
@@ -64,7 +66,7 @@ def clear_converted_dir():
 def main():
     logging.info("Starting conversion and growth-based sorting")
 
-    star_counts = load_current_star_counts()
+    repo_metadata, fieldnames = load_repo_index()
     repos_data = []
 
     clear_converted_dir()
@@ -74,8 +76,8 @@ def main():
             continue
 
         repo_name = filename[:-4].replace("_", "/", 1)
-        if repo_name not in star_counts:
-            logging.error(f"Missing current star count for {repo_name}, skipping")
+        if repo_name not in repo_metadata:
+            logging.warning(f"Missing metadata for {repo_name}, skipping")
             continue
 
         try:
@@ -84,7 +86,8 @@ def main():
             logging.warning(f"Failed to read history for {repo_name}: {e}")
             continue
 
-        cumulative = convert_to_cumulative(history, star_counts[repo_name])
+        current_stars = int(repo_metadata[repo_name]["stargazers_count"])
+        cumulative = convert_to_cumulative(history, current_stars)
         converted_path = os.path.join(CONVERTED_DIR, f"{repo_name}.csv")
         os.makedirs(os.path.dirname(converted_path), exist_ok=True)
 
@@ -98,6 +101,7 @@ def main():
 
         pct_30d = raw_30d = pct_1d = raw_1d = pct_5d = raw_5d = None
         max_5d_index = None
+        post_pct_5d = post_raw_5d = None
 
         if len(values) >= 2:
             for i in range(len(values)-1):
@@ -125,6 +129,19 @@ def main():
                 if raw_5d is None or diff > raw_5d:
                     raw_5d = diff
 
+        is_upcoming = False
+        if max_5d_index is not None and max_5d_index + 5 >= len(values) - 5:
+            is_upcoming = True
+
+        if max_5d_index is not None and max_5d_index + 6 < len(values):
+            post_start = values[max_5d_index + 6]
+            post_end = values[-1]
+            if post_start is not None and post_end is not None:
+                post_diff = post_end - post_start
+                if post_start > 0:
+                    post_pct_5d = (post_diff / post_start) * 100
+                post_raw_5d = post_diff
+
         if len(values) >= 30:
             start_30d = values[-30]
             end_30d = values[-1]
@@ -135,14 +152,15 @@ def main():
 
         repos_data.append({
             "name": repo_name,
-            "current_stars": star_counts[repo_name],
             "pct_1d": pct_1d,
             "raw_1d": raw_1d,
             "pct_5d": pct_5d,
             "raw_5d": raw_5d,
             "pct_30d": pct_30d,
             "raw_30d": raw_30d,
-            "max_5d_index": max_5d_index
+            "post_pct_5d": post_pct_5d,
+            "post_raw_5d": post_raw_5d,
+            "upcoming": is_upcoming
         })
 
     def write_sorted_output(output_file, key, label):
@@ -151,10 +169,11 @@ def main():
             writer = csv.writer(f)
             writer.writerow(["repo_name", label, "current_stars"])
             for repo in sorted_data:
+                stars = int(repo_metadata[repo["name"]]["stargazers_count"])
                 writer.writerow([
                     repo["name"],
                     f"{repo[key]:.2f}" if repo[key] is not None else "",
-                    repo["current_stars"]
+                    stars
                 ])
 
     write_sorted_output(OUTPUT_PCT_1D, "pct_1d", "pct_1d_growth")
@@ -163,8 +182,18 @@ def main():
     write_sorted_output(OUTPUT_RAW_5D, "raw_5d", "raw_5d_growth")
     write_sorted_output(OUTPUT_PCT_30D, "pct_30d", "pct_30d_growth")
     write_sorted_output(OUTPUT_RAW_30D, "raw_30d", "raw_30d_growth")
+    write_sorted_output(OUTPUT_PCT_POST_5D, "post_pct_5d", "post_pct_5d_growth")
+    write_sorted_output(OUTPUT_RAW_POST_5D, "post_raw_5d", "post_raw_5d_growth")
 
-    logging.info("Generated sorted CSVs for 1d, 5d, and 30d in both % and raw growth")
+    with open(REPO_FILTERS_OUTPUT, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames + ["upcoming"])
+        writer.writeheader()
+        for repo in repos_data:
+            row = repo_metadata[repo["name"]].copy()
+            row["upcoming"] = str(repo["upcoming"]).lower()
+            writer.writerow(row)
+
+    logging.info("Generated all CSVs including updated repo_filters.csv with upcoming column")
 
 if __name__ == "__main__":
     main()
