@@ -1,8 +1,8 @@
 # Shared (Frontend + Backend)
 node_modules/
 dist/
-build/
 dist-ssr
+build/
 *.log
 *.pid
 *.seed
@@ -14,6 +14,7 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+*.local
 
 # Logs
 logs/
@@ -80,7 +81,6 @@ jspm_packages/
 # Framework build outputs
 .next/
 .nuxt/
-.cache/
 public/
 .out/
 .storybook-out/
