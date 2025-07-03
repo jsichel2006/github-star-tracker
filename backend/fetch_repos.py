@@ -54,6 +54,11 @@ def search_repositories(date_range):
             r for r in items
             if not r.get("mirror_url") and not r.get("is_template")
         ]
+
+        # 🔁 Inject "repo_name" from "full_name"
+        for repo in filtered:
+            repo["repo_name"] = repo.get("full_name", "")
+
         repos.extend(filtered)
 
         if len(items) < 100:

@@ -12,7 +12,10 @@ def get_active_repos():
     with open(REPO_INDEX_FILE, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            active.add(row["full_name"])
+            repo_name = row["repo_name"]  # Expect it to exist — raise KeyError if not
+            if not repo_name:
+                raise ValueError(f"Empty repo_name in row: {row}")
+            active.add(repo_name.strip())
     return active
 
 def cleanup_files(active_repos):

@@ -9,7 +9,7 @@ const Legend: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white border rounded p-4" style={{ height: '300px' }}>
+    <div className="bg-white border rounded p-4" style={{ height: '348px' }}>
       <h3 className="font-semibold mb-4">Legend: Growth Metrics (% and raw)</h3>
       <div className="space-y-3">
         {metrics.map((metric, index) => (
@@ -17,7 +17,7 @@ const Legend: React.FC = () => {
             <div className="w-2 h-2 rounded-full bg-gray-400 mt-2 flex-shrink-0" />
             <div className="text-sm">
               <div className="font-medium">{metric.name}:</div>
-              <div className="text-muted-foreground">{metric.description}</div>
+              <div className="text-muted-foreground text-xs leading-relaxed">{metric.description}</div>
             </div>
           </div>
         ))}

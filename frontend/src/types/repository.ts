@@ -1,4 +1,3 @@
-
 export interface Repository {
   repo_name: string;
   html_url: string;

@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [showListFilter, setShowListFilter] = useState(false);
   const [visitedRepos, setVisitedRepos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [dataKey, setDataKey] = useState(0);
 
   const growthMetricLabel = `${filters.growthMetric.type === '30d' ? '30-Day' : 
                                filters.growthMetric.type === '5d' ? '5-Day' :
@@ -24,18 +25,35 @@ const Dashboard = () => {
                                'Post-Day'} Growth (${filters.growthMetric.format === 'pct' ? '%' : 'Raw'})`;
 
   useEffect(() => {
-    loadData();
+    const timeoutId = setTimeout(() => {
+      loadData();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [filters.growthMetric]);
 
   const loadData = async () => {
     setLoading(true);
-    const filename = `sorted_${filters.growthMetric.format}_${filters.growthMetric.type}${
-      filters.growthMetric.day ? `_${filters.growthMetric.day}` : ''
-    }`;
-    const repos = await loadRepositoryData(filename);
-    setRepositories(repos);
-    setHistogramBins(generateHistogram(repos));
-    setLoading(false);
+    
+    try {
+      const filename = `sorted_${filters.growthMetric.format}_${filters.growthMetric.type}${
+        filters.growthMetric.day ? `_${filters.growthMetric.day}` : ''
+      }`;
+      
+      const repos = await loadRepositoryData(filename);
+      const bins = generateHistogram(repos);
+      
+      setTimeout(() => {
+        setRepositories(repos);
+        setHistogramBins(bins);
+        setDataKey(prev => prev + 1);
+        setLoading(false);
+      }, 0);
+      
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      setLoading(false);
+    }
   };
 
   const handleRepoClick = (repoName: string) => {
@@ -54,13 +72,14 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" key={dataKey}>
       <div className="container mx-auto px-8 py-8">
         <h1 className="text-3xl font-bold text-center mb-8">GitHub Star Tracker</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <Histogram
+              key={`histogram-${dataKey}`}
               bins={histogramBins}
               xAxisLabel={growthMetricLabel}
               onFilterClick={() => setShowHistogramFilter(true)}
@@ -72,6 +91,7 @@ const Dashboard = () => {
         </div>
         
         <RepositoryList
+          key={`list-${dataKey}`}
           repositories={repositories}
           growthMetricLabel={growthMetricLabel}
           onFilterClick={() => setShowListFilter(true)}

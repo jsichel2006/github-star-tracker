@@ -1,4 +1,3 @@
-
 import { Repository } from '@/types/repository';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -108,7 +107,6 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {repositories.map((repo, index) => {
             const isVisited = visitedRepos.has(repo.repo_name);
-            console.log(`🔥 Rendering repo ${index}:`, repo.repo_name);
             return (
               <div
                 key={index}

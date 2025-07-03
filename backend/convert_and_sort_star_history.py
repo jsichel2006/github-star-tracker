@@ -1,7 +1,6 @@
 import os
 import csv
 import logging
-from urllib.parse import urlparse
 
 STAR_HISTORY_DIR = "star_history"
 REPO_INDEX_FILE = "repo_index.csv"
@@ -18,23 +17,14 @@ REPO_FILTERS_OUTPUT = "frontend/public/repo_filters.csv"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def extract_repo_full_name(url):
-    try:
-        parts = urlparse(url).path.strip('/').split('/')
-        if len(parts) >= 2:
-            return f"{parts[0]}/{parts[1]}"
-    except Exception:
-        pass
-    return None
-
 def load_repo_index():
     metadata = {}
     with open(REPO_INDEX_FILE, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            full_name = extract_repo_full_name(row["full_name"])
-            if full_name:
-                metadata[full_name] = row
+            repo_name = row["repo_name"].strip()
+            if repo_name:
+                metadata[repo_name] = row
     return metadata, reader.fieldnames
 
 def load_repo_history(repo_filename):
