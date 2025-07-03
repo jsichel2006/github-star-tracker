@@ -1,63 +1,117 @@
+
 import { useState, useEffect } from 'react';
-import { Repository, FilterState, HistogramBin } from '@/types/repository';
+import { Repository, FilterState, HistogramBin, GrowthMetric } from '@/types/repository';
 import { loadRepositoryData } from '@/utils/dataLoader';
 import { generateHistogram } from '@/utils/histogramUtils';
-import { getDefaultFilters } from '@/utils/filterUtils';
+import { getDefaultFilters, applyFilters } from '@/utils/filterUtils';
 import Histogram from '@/components/Histogram';
 import Legend from '@/components/Legend';
 import RepositoryList from '@/components/RepositoryList';
-import FilterPanel from '@/components/FilterPanel';
+import HistogramFilterPanel from '@/components/HistogramFilterPanel';
+import RepositoryListFilterPanel from '@/components/RepositoryListFilterPanel';
 
 const Dashboard = () => {
-  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [allRepositories, setAllRepositories] = useState<Repository[]>([]);
+  const [filteredRepositories, setFilteredRepositories] = useState<Repository[]>([]);
   const [histogramBins, setHistogramBins] = useState<HistogramBin[]>([]);
-  const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
+  
+  // Separate states for histogram and list filters
+  const [histogramGrowthMetric, setHistogramGrowthMetric] = useState<GrowthMetric>({ type: '30d', format: 'pct' });
+  const [listFilters, setListFilters] = useState<FilterState>(getDefaultFilters());
+  
   const [showHistogramFilter, setShowHistogramFilter] = useState(false);
   const [showListFilter, setShowListFilter] = useState(false);
   const [visitedRepos, setVisitedRepos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [dataKey, setDataKey] = useState(0);
 
-  const growthMetricLabel = `${filters.growthMetric.type === '30d' ? '30-Day' : 
-                               filters.growthMetric.type === '5d' ? '5-Day' :
-                               filters.growthMetric.type === '1d' ? '1-Day' :
-                               filters.growthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
-                               'Post-Day'} Growth (${filters.growthMetric.format === 'pct' ? '%' : 'Raw'})`;
+  const histogramGrowthMetricLabel = `${histogramGrowthMetric.type === '30d' ? '30-Day' : 
+                                        histogramGrowthMetric.type === '5d' ? '5-Day' :
+                                        histogramGrowthMetric.type === '1d' ? '1-Day' :
+                                        histogramGrowthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
+                                        'Post-Day'} Growth (${histogramGrowthMetric.format === 'pct' ? '%' : 'Raw'})`;
 
+  const listGrowthMetricLabel = `${listFilters.growthMetric.type === '30d' ? '30-Day' : 
+                                   listFilters.growthMetric.type === '5d' ? '5-Day' :
+                                   listFilters.growthMetric.type === '1d' ? '1-Day' :
+                                   listFilters.growthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
+                                   'Post-Day'} Growth (${listFilters.growthMetric.format === 'pct' ? '%' : 'Raw'})`;
+
+  // Load histogram data when histogram growth metric changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      loadData();
+      loadHistogramData();
     }, 100);
     
     return () => clearTimeout(timeoutId);
-  }, [filters.growthMetric]);
+  }, [histogramGrowthMetric]);
 
-  const loadData = async () => {
+  // Load repository list data when list filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadListData();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [listFilters.growthMetric]);
+
+  // Apply filters to repository list when filters change
+  useEffect(() => {
+    if (allRepositories.length > 0) {
+      const filtered = applyFilters(allRepositories, listFilters);
+      setFilteredRepositories(filtered);
+    }
+  }, [allRepositories, listFilters]);
+
+  const loadHistogramData = async () => {
     setLoading(true);
     
     try {
-      const filename = `sorted_${filters.growthMetric.format}_${filters.growthMetric.type}${
-        filters.growthMetric.day ? `_${filters.growthMetric.day}` : ''
+      const filename = `sorted_${histogramGrowthMetric.format}_${histogramGrowthMetric.type}${
+        histogramGrowthMetric.day ? `_${histogramGrowthMetric.day}` : ''
       }`;
       
       const repos = await loadRepositoryData(filename);
       const bins = generateHistogram(repos);
       
       setTimeout(() => {
-        setRepositories(repos);
         setHistogramBins(bins);
         setDataKey(prev => prev + 1);
         setLoading(false);
       }, 0);
       
     } catch (error) {
-      console.error('Error in loadData:', error);
+      console.error('Error in loadHistogramData:', error);
       setLoading(false);
+    }
+  };
+
+  const loadListData = async () => {
+    try {
+      const filename = `sorted_${listFilters.growthMetric.format}_${listFilters.growthMetric.type}${
+        listFilters.growthMetric.day ? `_${listFilters.growthMetric.day}` : ''
+      }`;
+      
+      const repos = await loadRepositoryData(filename);
+      setAllRepositories(repos);
+      
+    } catch (error) {
+      console.error('Error in loadListData:', error);
     }
   };
 
   const handleRepoClick = (repoName: string) => {
     setVisitedRepos(prev => new Set([...prev, repoName]));
+  };
+
+  // Handler for histogram filter changes (only growth metric)
+  const handleHistogramFiltersChange = (filters: FilterState) => {
+    setHistogramGrowthMetric(filters.growthMetric);
+  };
+
+  // Handler for repository list filter changes (all filters)
+  const handleListFiltersChange = (filters: FilterState) => {
+    setListFilters(filters);
   };
 
   if (loading) {
@@ -81,7 +135,7 @@ const Dashboard = () => {
             <Histogram
               key={`histogram-${dataKey}`}
               bins={histogramBins}
-              xAxisLabel={growthMetricLabel}
+              xAxisLabel={histogramGrowthMetricLabel}
               onFilterClick={() => setShowHistogramFilter(true)}
             />
           </div>
@@ -91,28 +145,28 @@ const Dashboard = () => {
         </div>
         
         <RepositoryList
-          key={`list-${dataKey}`}
-          repositories={repositories}
-          growthMetricLabel={growthMetricLabel}
+          key={`list-${listFilters.growthMetric.type}-${listFilters.growthMetric.format}`}
+          repositories={filteredRepositories}
+          growthMetricLabel={listGrowthMetricLabel}
           onFilterClick={() => setShowListFilter(true)}
           visitedRepos={visitedRepos}
           onRepoClick={handleRepoClick}
         />
       </div>
 
-      <FilterPanel
+      <HistogramFilterPanel
         isOpen={showHistogramFilter}
         onClose={() => setShowHistogramFilter(false)}
-        filters={filters}
-        onFiltersChange={setFilters}
+        filters={{ ...getDefaultFilters(), growthMetric: histogramGrowthMetric }}
+        onFiltersChange={handleHistogramFiltersChange}
         title="Histogram Filters"
       />
       
-      <FilterPanel
+      <RepositoryListFilterPanel
         isOpen={showListFilter}
         onClose={() => setShowListFilter(false)}
-        filters={filters}
-        onFiltersChange={setFilters}
+        filters={listFilters}
+        onFiltersChange={handleListFiltersChange}
         title="Repository List Filters"
       />
     </div>

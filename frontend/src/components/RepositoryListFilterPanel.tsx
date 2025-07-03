@@ -1,13 +1,12 @@
-
 import { useState } from 'react';
-import { FilterState, GrowthMetric } from '@/types/repository';
+import { FilterState } from '@/types/repository';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X, ChevronDown, ChevronUp, Check } from 'lucide-react';
 
-interface FilterPanelProps {
+interface RepositoryListFilterPanelProps {
   isOpen: boolean;
   onClose: () => void;
   filters: FilterState;
@@ -15,7 +14,7 @@ interface FilterPanelProps {
   title: string;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({
+const RepositoryListFilterPanel: React.FC<RepositoryListFilterPanelProps> = ({
   isOpen,
   onClose,
   filters,
@@ -286,4 +285,4 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   );
 };
 
-export default FilterPanel;
+export default RepositoryListFilterPanel;
