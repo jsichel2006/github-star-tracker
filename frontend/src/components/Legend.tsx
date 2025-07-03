@@ -4,7 +4,7 @@ const Legend: React.FC = () => {
     { name: '5-Day Growth', description: 'maximum growth across all 5-day intervals' },
     { name: '1-Day Growth', description: 'maximum growth across all 1-day intervals' },
     { name: 'Post-Maximum 5-Day Growth', description: 'growth after maximum 5-Day Growth (%) interval' },
-    { name: 'Post-__ Growth', description: 'growth after a specified day' }
+    { name: 'Post-Day __ Growth', description: 'growth after a specified day' }
   ];
 
   return (

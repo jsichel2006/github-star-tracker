@@ -97,7 +97,7 @@ const HistogramFilterPanel: React.FC<HistogramFilterPanelProps> = ({
                     { type: '5d', label: '5-Day' },
                     { type: '1d', label: '1-Day' },
                     { type: 'post_5d', label: 'Post-Maximum 5-Day' },
-                    { type: 'post_day', label: 'Post-__ Day' }
+                    { type: 'post_day', label: 'Post-Day __' }
                   ].map(metric => (
                     <div key={metric.type} className="flex items-center space-x-2">
                       <Checkbox

@@ -1,3 +1,5 @@
+
+
 import { Repository, StarHistoryPoint } from '@/types/repository';
 
 export const parseCSV = (csvText: string): any[] => {
@@ -68,8 +70,8 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
           growthValue = parseFloat(row.raw_5d_growth);
         } else if (row.raw_1d_growth) {
           growthValue = parseFloat(row.raw_1d_growth);
-        } else if (row.raw_post_5d_growth) {
-          growthValue = parseFloat(row.raw_post_5d_growth);
+        } else if (row.post_raw_5d_growth) {
+          growthValue = parseFloat(row.post_raw_5d_growth);
         } else if (row.raw_post_day_growth) {
           growthValue = parseFloat(row.raw_post_day_growth);
         }
@@ -80,8 +82,8 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
           growthValue = parseFloat(row.pct_5d_growth);
         } else if (row.pct_1d_growth) {
           growthValue = parseFloat(row.pct_1d_growth);
-        } else if (row.pct_post_5d_growth) {
-          growthValue = parseFloat(row.pct_post_5d_growth);
+        } else if (row.post_pct_5d_growth) {
+          growthValue = parseFloat(row.post_pct_5d_growth);
         } else if (row.pct_post_day_growth) {
           growthValue = parseFloat(row.pct_post_day_growth);
         } else if (row.growth_value) {
