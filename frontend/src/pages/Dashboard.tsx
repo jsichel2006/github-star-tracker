@@ -15,15 +15,43 @@ const Dashboard = () => {
   const [filteredRepositories, setFilteredRepositories] = useState<Repository[]>([]);
   const [histogramBins, setHistogramBins] = useState<HistogramBin[]>([]);
   
+  // Load initial state from localStorage or use defaults
+  const loadPersistedHistogramMetric = (): GrowthMetric => {
+    try {
+      const saved = localStorage.getItem('histogramGrowthMetric');
+      return saved ? JSON.parse(saved) : { type: '30d', format: 'pct' };
+    } catch {
+      return { type: '30d', format: 'pct' };
+    }
+  };
+
+  const loadPersistedListFilters = (): FilterState => {
+    try {
+      const saved = localStorage.getItem('listFilters');
+      return saved ? JSON.parse(saved) : getDefaultFilters();
+    } catch {
+      return getDefaultFilters();
+    }
+  };
+
   // Separate states for histogram and list filters
-  const [histogramGrowthMetric, setHistogramGrowthMetric] = useState<GrowthMetric>({ type: '30d', format: 'pct' });
-  const [listFilters, setListFilters] = useState<FilterState>(getDefaultFilters());
+  const [histogramGrowthMetric, setHistogramGrowthMetric] = useState<GrowthMetric>(loadPersistedHistogramMetric);
+  const [listFilters, setListFilters] = useState<FilterState>(loadPersistedListFilters);
   
   const [showHistogramFilter, setShowHistogramFilter] = useState(false);
   const [showListFilter, setShowListFilter] = useState(false);
   const [visitedRepos, setVisitedRepos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [dataKey, setDataKey] = useState(0);
+
+  // Save to localStorage whenever states change
+  useEffect(() => {
+    localStorage.setItem('histogramGrowthMetric', JSON.stringify(histogramGrowthMetric));
+  }, [histogramGrowthMetric]);
+
+  useEffect(() => {
+    localStorage.setItem('listFilters', JSON.stringify(listFilters));
+  }, [listFilters]);
 
   const histogramGrowthMetricLabel = `${histogramGrowthMetric.type === '30d' ? '30-Day' : 
                                         histogramGrowthMetric.type === '5d' ? '5-Day' :
