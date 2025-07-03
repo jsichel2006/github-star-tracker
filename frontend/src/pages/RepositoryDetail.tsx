@@ -135,7 +135,7 @@ const RepositoryDetail = () => {
         {/* Repository Information */}
         <div className="bg-white rounded-lg border p-6 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 flex flex-col justify-center">
               <h2 className="text-xl font-semibold text-blue-600 mb-2">
                 {repository.repo_name}
               </h2>
@@ -152,19 +152,19 @@ const RepositoryDetail = () => {
             <div className="lg:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-50 p-3 rounded">
                 <div className="text-sm font-medium text-gray-700">Stars</div>
-                <div className="text-lg font-semibold">{repository.stargazers_count}</div>
+                <div className="text-lg">{repository.stargazers_count}</div>
               </div>
               <div className="bg-gray-50 p-3 rounded">
                 <div className="text-sm font-medium text-gray-700">Forks</div>
-                <div className="text-lg font-semibold">{repository.forks_count}</div>
+                <div className="text-lg">{repository.forks_count}</div>
               </div>
               <div className="bg-gray-50 p-3 rounded">
                 <div className="text-sm font-medium text-gray-700">Last Push</div>
-                <div className="text-sm">{formatDate(repository.pushed_at)}</div>
+                <div className="text-lg">{formatDate(repository.pushed_at)}</div>
               </div>
               <div className="bg-gray-50 p-3 rounded">
                 <div className="text-sm font-medium text-gray-700">Date Created</div>
-                <div className="text-sm">{formatDate(repository.created_at)}</div>
+                <div className="text-lg">{formatDate(repository.created_at)}</div>
               </div>
               <div className="bg-gray-50 p-3 rounded">
                 <div className="text-sm font-medium text-gray-700">Topics</div>

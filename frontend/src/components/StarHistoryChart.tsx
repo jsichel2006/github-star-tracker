@@ -9,7 +9,7 @@ interface StarHistoryChartProps {
 const StarHistoryChart: React.FC<StarHistoryChartProps> = ({ data }) => {
   if (data.length === 0) {
     return (
-      <div className="h-64 flex items-center justify-center border rounded">
+      <div className="h-80 flex items-center justify-center border rounded">
         <p className="text-muted-foreground">No star history data available</p>
       </div>
     );
@@ -42,19 +42,38 @@ const StarHistoryChart: React.FC<StarHistoryChartProps> = ({ data }) => {
     return null;
   };
 
+  const getAdjustedTickDates = (data: StarHistoryPoint[], step = 2, start = 1) =>
+    data
+      .filter((_, index) => index >= start && (index - start) % step === 0)
+      .map(d => d.date);
+
   return (
-    <div className="h-64">
+    <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDate}
+            ticks={getAdjustedTickDates(data, 2, 1)}
             interval="preserveStartEnd"
+            label={{
+              value: 'Date',
+              position: 'insideBottom',
+              offset: -18,
+              dx: -20,
+              style: { textAnchor: 'middle' }
+            }}           
           />
           <YAxis 
             domain={[yAxisMin, yAxisMax]}
-            label={{ value: 'Star Count', angle: -90, position: 'insideLeft' }}
+            label={{ 
+              value: 'Star Count', 
+              angle: -90, 
+              position: 'insideLeft',
+              style: { textAnchor: 'middle' },
+              offset: -5
+            }}
           />
           <Tooltip content={<CustomTooltip />} />
           <Line 
