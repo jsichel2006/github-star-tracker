@@ -1,4 +1,3 @@
-
 const Legend: React.FC = () => {
   const metrics = [
     { name: '30-Day Growth', description: 'total growth over 30-day period' },
@@ -9,9 +8,9 @@ const Legend: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white border rounded p-4" style={{ height: '348px' }}>
-      <h3 className="font-semibold mb-4">Legend: Growth Metrics (% and raw)</h3>
-      <div className="space-y-3">
+    <div className="bg-white border rounded p-4" style={{ height: '396px' }}>
+      <h3 className="font-semibold mb-6">Legend: Growth Metrics (% and raw)</h3>
+      <div className="space-y-6">
         {metrics.map((metric, index) => (
           <div key={index} className="flex items-start space-x-2">
             <div className="w-2 h-2 rounded-full bg-gray-400 mt-2 flex-shrink-0" />
