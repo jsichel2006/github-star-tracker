@@ -60,12 +60,30 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
         const repoName = row.repo_name || row.full_name || row.repository || row.name || '';
         
         let growthValue = 0;
-        if (row.pct_30d_growth) {
+        
+        // Check for raw growth columns first
+        if (row.raw_30d_growth) {
+          growthValue = parseFloat(row.raw_30d_growth);
+        } else if (row.raw_5d_growth) {
+          growthValue = parseFloat(row.raw_5d_growth);
+        } else if (row.raw_1d_growth) {
+          growthValue = parseFloat(row.raw_1d_growth);
+        } else if (row.raw_post_5d_growth) {
+          growthValue = parseFloat(row.raw_post_5d_growth);
+        } else if (row.raw_post_day_growth) {
+          growthValue = parseFloat(row.raw_post_day_growth);
+        }
+        // Then check for percentage growth columns
+        else if (row.pct_30d_growth) {
           growthValue = parseFloat(row.pct_30d_growth);
         } else if (row.pct_5d_growth) {
           growthValue = parseFloat(row.pct_5d_growth);
         } else if (row.pct_1d_growth) {
           growthValue = parseFloat(row.pct_1d_growth);
+        } else if (row.pct_post_5d_growth) {
+          growthValue = parseFloat(row.pct_post_5d_growth);
+        } else if (row.pct_post_day_growth) {
+          growthValue = parseFloat(row.pct_post_day_growth);
         } else if (row.growth_value) {
           growthValue = parseFloat(row.growth_value);
         }

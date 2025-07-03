@@ -151,6 +151,7 @@ const Dashboard = () => {
           onFilterClick={() => setShowListFilter(true)}
           visitedRepos={visitedRepos}
           onRepoClick={handleRepoClick}
+          isRawGrowth={listFilters.growthMetric.format === 'raw'}
         />
       </div>
 

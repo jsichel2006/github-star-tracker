@@ -1,3 +1,4 @@
+
 import { Repository } from '@/types/repository';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,7 @@ interface RepositoryListProps {
   onFilterClick: () => void;
   visitedRepos: Set<string>;
   onRepoClick: (repoName: string) => void;
+  isRawGrowth?: boolean;
 }
 
 const RepositoryList: React.FC<RepositoryListProps> = ({
@@ -15,7 +17,8 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
   growthMetricLabel,
   onFilterClick,
   visitedRepos,
-  onRepoClick
+  onRepoClick,
+  isRawGrowth = false
 }) => {
   const navigate = useNavigate();
 
@@ -87,6 +90,16 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
     console.log('🔥 Navigate called successfully');
   };
 
+  const formatGrowthValue = (value: number | undefined) => {
+    if (value === undefined || value === null) return '0';
+    
+    if (isRawGrowth) {
+      return value.toFixed(0);
+    } else {
+      return value.toFixed(2) + '%';
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="border-t pt-6">
@@ -107,6 +120,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {repositories.map((repo, index) => {
             const isVisited = visitedRepos.has(repo.repo_name);
+            console.log(`🔥 Rendering repo ${index}:`, repo.repo_name);
             return (
               <div
                 key={index}
@@ -122,7 +136,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                   {repo.repo_name || 'Unknown Repository'}
                 </div>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                  <span>Growth: {repo.growth_value?.toFixed(2)}%</span>
+                  <span>Growth: {formatGrowthValue(repo.growth_value)}</span>
                   <span>Stars: {repo.current_stars || repo.stargazers_count}</span>
                 </div>
               </div>
