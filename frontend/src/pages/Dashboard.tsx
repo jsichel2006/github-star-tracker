@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Repository, FilterState, HistogramBin, GrowthMetric } from '@/types/repository';
 import { loadRepositoryData } from '@/utils/dataLoader';
@@ -15,10 +14,10 @@ const Dashboard = () => {
   const [filteredRepositories, setFilteredRepositories] = useState<Repository[]>([]);
   const [histogramBins, setHistogramBins] = useState<HistogramBin[]>([]);
   
-  // Load initial state from localStorage or use defaults
+  // Load initial state from sessionStorage or use defaults
   const loadPersistedHistogramMetric = (): GrowthMetric => {
     try {
-      const saved = localStorage.getItem('histogramGrowthMetric');
+      const saved = sessionStorage.getItem('histogramGrowthMetric');
       return saved ? JSON.parse(saved) : { type: '30d', format: 'pct' };
     } catch {
       return { type: '30d', format: 'pct' };
@@ -27,7 +26,7 @@ const Dashboard = () => {
 
   const loadPersistedListFilters = (): FilterState => {
     try {
-      const saved = localStorage.getItem('listFilters');
+      const saved = sessionStorage.getItem('listFilters');
       return saved ? JSON.parse(saved) : getDefaultFilters();
     } catch {
       return getDefaultFilters();
@@ -44,26 +43,43 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dataKey, setDataKey] = useState(0);
 
-  // Save to localStorage whenever states change
+  // Save to sessionStorage whenever states change
   useEffect(() => {
-    localStorage.setItem('histogramGrowthMetric', JSON.stringify(histogramGrowthMetric));
+    sessionStorage.setItem('histogramGrowthMetric', JSON.stringify(histogramGrowthMetric));
   }, [histogramGrowthMetric]);
 
   useEffect(() => {
-    localStorage.setItem('listFilters', JSON.stringify(listFilters));
+    sessionStorage.setItem('listFilters', JSON.stringify(listFilters));
   }, [listFilters]);
+
+  // Clear session storage when leaving the site entirely
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem('histogramGrowthMetric');
+      sessionStorage.removeItem('listFilters');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const histogramGrowthMetricLabel = `${histogramGrowthMetric.type === '30d' ? '30-Day' : 
                                         histogramGrowthMetric.type === '5d' ? '5-Day' :
                                         histogramGrowthMetric.type === '1d' ? '1-Day' :
                                         histogramGrowthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
+                                        histogramGrowthMetric.type === 'post_day' ? `Post-Day ${histogramGrowthMetric.day || 1}` :
                                         'Post-Day'} Growth (${histogramGrowthMetric.format === 'pct' ? '%' : 'Raw'})`;
 
-  const listGrowthMetricLabel = `${listFilters.growthMetric.type === '30d' ? '30-Day' : 
-                                   listFilters.growthMetric.type === '5d' ? '5-Day' :
-                                   listFilters.growthMetric.type === '1d' ? '1-Day' :
-                                   listFilters.growthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
-                                   'Post-Day'} Growth (${listFilters.growthMetric.format === 'pct' ? '%' : 'Raw'})`;
+  const listGrowthMetricLabel = `${listFilters.growthMetric.type === '30d' ? '30-Day' :
+                                listFilters.growthMetric.type === '5d' ? '5-Day' :
+                                listFilters.growthMetric.type === '1d' ? '1-Day' :
+                                listFilters.growthMetric.type === 'post_5d' ? 'Post-Maximum 5-Day' :
+                                listFilters.growthMetric.type === 'post_day' && listFilters.growthMetric.day
+                                  ? `Post-Day ${listFilters.growthMetric.day}` :
+                                'Unknown'} Growth (${listFilters.growthMetric.format === 'pct' ? '%' : 'Raw'})`;
 
   // Load histogram data when histogram growth metric changes
   useEffect(() => {

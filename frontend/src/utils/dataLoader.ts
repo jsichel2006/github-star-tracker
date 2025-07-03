@@ -1,5 +1,3 @@
-
-
 import { Repository, StarHistoryPoint } from '@/types/repository';
 
 export const parseCSV = (csvText: string): any[] => {
@@ -72,22 +70,46 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
           growthValue = parseFloat(row.raw_1d_growth);
         } else if (row.post_raw_5d_growth) {
           growthValue = parseFloat(row.post_raw_5d_growth);
-        } else if (row.raw_post_day_growth) {
-          growthValue = parseFloat(row.raw_post_day_growth);
+        } else if (row.post_raw_day_growth) {
+          growthValue = parseFloat(row.post_raw_day_growth);
         }
-        // Then check for percentage growth columns
-        else if (row.pct_30d_growth) {
-          growthValue = parseFloat(row.pct_30d_growth);
-        } else if (row.pct_5d_growth) {
-          growthValue = parseFloat(row.pct_5d_growth);
-        } else if (row.pct_1d_growth) {
-          growthValue = parseFloat(row.pct_1d_growth);
-        } else if (row.post_pct_5d_growth) {
-          growthValue = parseFloat(row.post_pct_5d_growth);
-        } else if (row.pct_post_day_growth) {
-          growthValue = parseFloat(row.pct_post_day_growth);
-        } else if (row.growth_value) {
-          growthValue = parseFloat(row.growth_value);
+        // Check for specific post-day raw growth columns (days 1-29)
+        else {
+          for (let day = 1; day <= 29; day++) {
+            if (row[`raw_post_day_${day}_growth`]) {
+              growthValue = parseFloat(row[`raw_post_day_${day}_growth`]);
+              break;
+            }
+          }
+        }
+        
+        // If no raw growth found, check for percentage growth columns
+        if (growthValue === 0) {
+          if (row.pct_30d_growth) {
+            growthValue = parseFloat(row.pct_30d_growth);
+          } else if (row.pct_5d_growth) {
+            growthValue = parseFloat(row.pct_5d_growth);
+          } else if (row.pct_1d_growth) {
+            growthValue = parseFloat(row.pct_1d_growth);
+          } else if (row.post_pct_5d_growth) {
+            growthValue = parseFloat(row.post_pct_5d_growth);
+          } else if (row.post_pct_day_growth) {
+            growthValue = parseFloat(row.post_pct_day_growth);
+          }
+          // Check for specific post-day percentage growth columns (days 1-29)
+          else {
+            for (let day = 1; day <= 29; day++) {
+              if (row[`pct_post_day_${day}_growth`]) {
+                growthValue = parseFloat(row[`pct_post_day_${day}_growth`]);
+                break;
+              }
+            }
+          }
+          
+          // Final fallback
+          if (growthValue === 0 && row.growth_value) {
+            growthValue = parseFloat(row.growth_value);
+          }
         }
         
         return {
