@@ -204,7 +204,6 @@ const Dashboard = () => {
         onClose={() => setShowHistogramFilter(false)}
         filters={{ ...getDefaultFilters(), growthMetric: histogramGrowthMetric }}
         onFiltersChange={handleHistogramFiltersChange}
-        title="Histogram Filters"
       />
       
       <RepositoryListFilterPanel
@@ -212,7 +211,6 @@ const Dashboard = () => {
         onClose={() => setShowListFilter(false)}
         filters={listFilters}
         onFiltersChange={handleListFiltersChange}
-        title="Repository List Filters"
       />
     </div>
   );

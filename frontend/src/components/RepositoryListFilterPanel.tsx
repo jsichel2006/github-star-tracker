@@ -11,7 +11,6 @@ interface RepositoryListFilterPanelProps {
   onClose: () => void;
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
-  title: string;
 }
 
 const RepositoryListFilterPanel: React.FC<RepositoryListFilterPanelProps> = ({
@@ -19,7 +18,6 @@ const RepositoryListFilterPanel: React.FC<RepositoryListFilterPanelProps> = ({
   onClose,
   filters,
   onFiltersChange,
-  title
 }) => {
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -94,7 +92,7 @@ const RepositoryListFilterPanel: React.FC<RepositoryListFilterPanelProps> = ({
     <div className="fixed inset-0 z-50 flex">
       <div className="w-80 bg-white shadow-xl border-r h-full overflow-y-auto">
         <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-semibold">{'Repository List: Sort & Filter'}</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -475,6 +473,9 @@ const RepositoryListFilterPanel: React.FC<RepositoryListFilterPanelProps> = ({
             
             {expandedSections.has('upcoming') && (
               <div className="mt-2 space-y-2">
+                <div className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                  (Repositories whose peak 5-Day Growth (%) occurred near the end of the 30-day window — the opposite of Post-Maximum 5-Day Growth (%))
+                </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     checked={tempFilters.upcoming === true}
