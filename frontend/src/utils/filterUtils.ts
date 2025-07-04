@@ -1,14 +1,23 @@
 import { Repository, FilterState } from '@/types/repository';
 
 export const applyFilters = (repositories: Repository[], filters: FilterState): Repository[] => {
+  console.log('🔍 FILTER DEBUG - Starting applyFilters');
+  console.log('🔍 Input repositories count:', repositories.length);
+  console.log('🔍 Filter settings:', filters);
+  
   return repositories.filter(repo => {
     // Stars filter
     if (repo.stargazers_count < filters.stars[0] || repo.stargazers_count > filters.stars[1]) {
+      console.log(`⭐ STARS FILTER: Repo ${repo.repo_name} filtered out - stars: ${repo.stargazers_count}, range: [${filters.stars[0]}, ${filters.stars[1]}]`);
       return false;
     }
     
-    // Forks filter
+    // Forks filter - Enhanced debugging
+    console.log(`🍴 FORKS DEBUG: Repo ${repo.repo_name} - forks: ${repo.forks_count} (type: ${typeof repo.forks_count}), range: [${filters.forks[0]}, ${filters.forks[1]}] (types: ${typeof filters.forks[0]}, ${typeof filters.forks[1]})`);
+    console.log(`🍴 FORKS COMPARISON: ${repo.forks_count} < ${filters.forks[0]} = ${repo.forks_count < filters.forks[0]}, ${repo.forks_count} > ${filters.forks[1]} = ${repo.forks_count > filters.forks[1]}`);
+    
     if (repo.forks_count < filters.forks[0] || repo.forks_count > filters.forks[1]) {
+      console.log(`🍴 FORKS FILTER: Repo ${repo.repo_name} filtered out - forks: ${repo.forks_count}, range: [${filters.forks[0]}, ${filters.forks[1]}]`);
       return false;
     }
     
@@ -21,28 +30,40 @@ export const applyFilters = (repositories: Repository[], filters: FilterState): 
     const endPushed = new Date(filters.lastPush[1]);
     
     if (createdDate < startCreated || createdDate > endCreated) {
+      console.log(`📅 DATE CREATED FILTER: Repo ${repo.repo_name} filtered out`);
       return false;
     }
     
     if (pushedDate < startPushed || pushedDate > endPushed) {
+      console.log(`📅 LAST PUSH FILTER: Repo ${repo.repo_name} filtered out`);
       return false;
     }
     
-    // Topics filter
-    const repoTopics = repo.topics.toLowerCase().split('|').filter(t => t.trim());
+    // Topics filter (safe parsing)
+    const repoTopics = (repo.topics || '')
+      .toLowerCase()
+      .split('|')
+      .map(t => t.trim())
+      .filter(Boolean);
     
     if (filters.includeTopics.length > 0) {
       const hasIncludedTopic = filters.includeTopics.some(topic => 
         repoTopics.includes(topic.toLowerCase())
       );
-      if (!hasIncludedTopic) return false;
+      if (!hasIncludedTopic) {
+        console.log(`🏷️ INCLUDE TOPICS FILTER: Repo ${repo.repo_name} filtered out`);
+        return false;
+      }
     }
     
     if (filters.excludeTopics.length > 0) {
       const hasExcludedTopic = filters.excludeTopics.some(topic => 
         repoTopics.includes(topic.toLowerCase())
       );
-      if (hasExcludedTopic) return false;
+      if (hasExcludedTopic) {
+        console.log(`🏷️ EXCLUDE TOPICS FILTER: Repo ${repo.repo_name} filtered out`);
+        return false;
+      }
     }
     
     // License filter
@@ -55,20 +76,24 @@ export const applyFilters = (repositories: Repository[], filters: FilterState): 
       }
       
       if (!filters.licenses.includes(repoLicense)) {
+        console.log(`📄 LICENSE FILTER: Repo ${repo.repo_name} filtered out`);
         return false;
       }
     }
     
     // Ownership filter
     if (filters.ownership.length > 0 && !filters.ownership.includes(repo.owner_type)) {
+      console.log(`👤 OWNERSHIP FILTER: Repo ${repo.repo_name} filtered out`);
       return false;
     }
     
     // Upcoming filter
     if (filters.upcoming !== null && repo.upcoming !== filters.upcoming) {
+      console.log(`🔮 UPCOMING FILTER: Repo ${repo.repo_name} filtered out`);
       return false;
     }
     
+    console.log(`✅ PASSED ALL FILTERS: ${repo.repo_name}`);
     return true;
   });
 };

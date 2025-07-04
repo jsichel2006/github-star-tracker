@@ -187,8 +187,13 @@ def main():
         pct_key = f"post_pct_day_{day}"
         raw_key = f"post_raw_day_{day}"
         for repo in repos_data:
-            values = [v for (_, v) in convert_to_cumulative(load_repo_history(f"{repo['name'].replace('/', '_')}.csv"),
-                                                             int(repo_metadata[repo['name']]["stargazers_count"])) if v is not None]
+            values = [
+                v for (_, v) in convert_to_cumulative(
+                    load_repo_history(f"{repo['name'].replace('/', '_')}.csv"),
+                    int(repo_metadata[repo['name']]["stargazers_count"])
+                )
+                if v is not None
+            ]
             if len(values) <= day or values[day] is None or values[-1] is None:
                 repo[pct_key] = None
                 repo[raw_key] = None
