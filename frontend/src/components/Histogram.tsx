@@ -1,4 +1,3 @@
-
 import { HistogramBin } from '@/types/repository';
 import { Button } from '@/components/ui/button';
 
