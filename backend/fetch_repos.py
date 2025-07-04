@@ -34,7 +34,7 @@ def get_date_ranges():
 
 def search_repositories(date_range):
     query = (
-        f"stars:250..5000 created:{date_range[0]}..{date_range[1]} archived:false"
+        f"stars:250..5000 forks:<=2000 created:{date_range[0]}..{date_range[1]} archived:false"
     )
     params = {
         "q": query,

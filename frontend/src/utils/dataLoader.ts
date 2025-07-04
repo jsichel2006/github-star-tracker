@@ -137,21 +137,73 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
       
       if (filterCsvText.includes('<!DOCTYPE html>')) {
         console.warn('Received HTML instead of CSV for repo_filters');
-        // Fallback to growth data only
-        return growthData.map(row => ({
-          repo_name: row.repo_name || '',
-          html_url: `https://github.com/${row.repo_name}`,
-          created_at: '',
-          stargazers_count: parseInt(row.current_stars || '0'),
-          pushed_at: '',
-          forks_count: 0,
-          topics: '',
-          license_spdx: '',
-          owner_type: 'User',
-          upcoming: false,
-          growth_value: parseFloat(row.growth_value || '0'),
-          current_stars: parseInt(row.current_stars || '0')
-        }));
+        // Fallback to growth data only - same logic as above
+        return growthData.map(row => {
+          const repoName = row.repo_name || row.full_name || row.repository || row.name || '';
+          
+          let growthValue = 0;
+          
+          if (row.raw_30d_growth) {
+            growthValue = parseFloat(row.raw_30d_growth);
+          } else if (row.raw_5d_growth) {
+            growthValue = parseFloat(row.raw_5d_growth);
+          } else if (row.raw_1d_growth) {
+            growthValue = parseFloat(row.raw_1d_growth);
+          } else if (row.post_raw_5d_growth) {
+            growthValue = parseFloat(row.post_raw_5d_growth);
+          } else if (row.post_raw_day_growth) {
+            growthValue = parseFloat(row.post_raw_day_growth);
+          }
+          else {
+            for (let day = 1; day <= 29; day++) {
+              if (row[`raw_post_day_${day}_growth`]) {
+                growthValue = parseFloat(row[`raw_post_day_${day}_growth`]);
+                break;
+              }
+            }
+          }
+          
+          if (growthValue === 0) {
+            if (row.pct_30d_growth) {
+              growthValue = parseFloat(row.pct_30d_growth);
+            } else if (row.pct_5d_growth) {
+              growthValue = parseFloat(row.pct_5d_growth);
+            } else if (row.pct_1d_growth) {
+              growthValue = parseFloat(row.pct_1d_growth);
+            } else if (row.post_pct_5d_growth) {
+              growthValue = parseFloat(row.post_pct_5d_growth);
+            } else if (row.post_pct_day_growth) {
+              growthValue = parseFloat(row.post_pct_day_growth);
+            }
+            else {
+              for (let day = 1; day <= 29; day++) {
+                if (row[`pct_post_day_${day}_growth`]) {
+                  growthValue = parseFloat(row[`pct_post_day_${day}_growth`]);
+                  break;
+                }
+              }
+            }
+            
+            if (growthValue === 0 && row.growth_value) {
+              growthValue = parseFloat(row.growth_value);
+            }
+          }
+          
+          return {
+            repo_name: repoName,
+            html_url: `https://github.com/${repoName}`,
+            created_at: row.created_at || '',
+            stargazers_count: parseInt(row.current_stars || row.stargazers_count || '0'),
+            pushed_at: row.pushed_at || '',
+            forks_count: parseInt(row.forks_count || '0'),
+            topics: row.topics || '',
+            license_spdx: row.license_spdx || '',
+            owner_type: row.owner_type || 'User',
+            upcoming: row.upcoming === 'true',
+            growth_value: growthValue,
+            current_stars: parseInt(row.current_stars || row.stargazers_count || '0')
+          };
+        });
       }
       
       const filterData = parseCSV(filterCsvText);
@@ -166,9 +218,10 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
       });
       
       // Merge growth data with complete repository metadata
+      // Keep ALL repositories from growth data, enhance with metadata when available
       const mergedData = growthData.map(growthRow => {
         const repoName = growthRow.repo_name || growthRow.full_name || growthRow.repository || growthRow.name || '';
-        const metadata = repoMetadataMap.get(repoName);
+        const metadata = repoMetadataMap.get(repoName); // This may be undefined, and that's OK
         
         let growthValue = 0;
         
@@ -218,24 +271,30 @@ export const loadRepositoryData = async (growthMetric: string): Promise<Reposito
           }
         }
         
+        // Use metadata if available, otherwise fall back to growth data or defaults
         return {
           repo_name: repoName,
           html_url: metadata?.html_url || `https://github.com/${repoName}`,
-          created_at: metadata?.created_at || '',
-          stargazers_count: parseInt(growthRow.current_stars || metadata?.stargazers_count || '0'),
-          pushed_at: metadata?.pushed_at || '',
-          forks_count: parseInt(metadata?.forks_count || '0'),
-          topics: metadata?.topics || '',
-          license_spdx: metadata?.license_spdx || '',
-          owner_type: metadata?.owner_type || 'User',
-          upcoming: metadata?.upcoming === 'true' || metadata?.upcoming === true,
+          created_at: metadata?.created_at || growthRow.created_at || '',
+          stargazers_count: parseInt(growthRow.current_stars || metadata?.stargazers_count || growthRow.stargazers_count || '0'),
+          pushed_at: metadata?.pushed_at || growthRow.pushed_at || '',
+          forks_count: parseInt(metadata?.forks_count || growthRow.forks_count || '0'),
+          topics: metadata?.topics || growthRow.topics || '',
+          license_spdx: metadata?.license_spdx || growthRow.license_spdx || '',
+          owner_type: metadata?.owner_type || growthRow.owner_type || 'User',
+          upcoming: (metadata?.upcoming === 'true' || metadata?.upcoming === true) || (growthRow.upcoming === 'true' || growthRow.upcoming === true),
           growth_value: growthValue,
-          current_stars: parseInt(growthRow.current_stars || metadata?.stargazers_count || '0')
+          current_stars: parseInt(growthRow.current_stars || metadata?.stargazers_count || growthRow.stargazers_count || '0')
         };
       });
       
       console.log(`Successfully merged data for ${mergedData.length} repositories`);
       console.log('Sample merged repository:', mergedData[0]);
+      
+      // Count how many had metadata vs didn't
+      const withMetadata = mergedData.filter(repo => repoMetadataMap.has(repo.repo_name)).length;
+      const withoutMetadata = mergedData.length - withMetadata;
+      console.log(`Repositories with metadata: ${withMetadata}, without metadata: ${withoutMetadata}`);
       
       return mergedData;
       
